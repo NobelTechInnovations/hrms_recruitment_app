@@ -1,5 +1,116 @@
 # hrms_recruitment_app
 A verified talent marketplace where companies find pre-screened candidates and job seekers discover verified employment opportunities—without exposing personal contact information.
+
+> The full product specification is kept unchanged below under **[Product specification](#product-specification)**. Everything in it is implemented in this repository — see the [feature map](#feature-map).
+
+## Quick start
+
+Requirements: Node.js 20.9+ (22 LTS recommended).
+
+```bash
+npm install
+npm run setup        # creates ./data/hrms.db and loads demo data
+npm run dev          # http://localhost:3000
+```
+
+All demo accounts use the password **`Password@123`**:
+
+| Role | Email |
+| --- | --- |
+| Platform admin | `admin@panel.com` |
+| Company HR admin (verified, Success Fee plan) | `hr@xyzsoft.com` |
+| Company recruiter / hiring manager / interviewer | `recruiter@xyzsoft.com`, `manager@xyzsoft.com`, `interviewer@xyzsoft.com` |
+| Company (verified, Hybrid plan) | `talent@finedge.in` |
+| Company (verification pending) | `hr@brightretail.in` |
+| Candidate — fully verified, Level 1 + 2 qualified | `asha@example.com` |
+| Candidate — Find Jobs For Me active | `vikram@example.com` |
+| Other candidates | `rahul@`, `priya@`, `neha@`, `arjun@`, `kavya@example.com` |
+
+## Scripts
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` / `npm run build` / `npm start` | Next.js dev server, production build, production server |
+| `npm run setup` | `db:migrate` + `db:seed` |
+| `npm run db:reset` | Delete the local database and uploads, migrate and seed again |
+| `npm run db:generate` | Generate a new Drizzle migration after editing `src/db/schema.ts` |
+| `npm run jobs` | Run scheduled jobs once (interview reminders, 60-day milestones → invoices, overdue invoices, subscription renewals, Level 2 nudges, Find-Jobs-For-Me matching) |
+| `npm test` | Unit tests (Vitest) for matching, contact-leak guard, billing, pipeline, scoring, assessments |
+| `npm run test:e2e` | End-to-end browser test of the main journeys against a running, freshly seeded app |
+| `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
+
+## Configuration
+
+Copy `.env.example` to `.env.local`. Nothing is required for local development: without credentials, emails, SMS and WhatsApp messages are recorded in **Admin → Notification log**, and the Interview AI assistant uses its built-in summariser.
+
+In production also set:
+- `CRON_SECRET`, and call `POST /api/cron` with `Authorization: Bearer $CRON_SECRET` every 15 minutes.
+- `RELAY_DOMAIN` + `RELAY_WEBHOOK_SECRET`, and point your mail provider's inbound webhook for `*@RELAY_DOMAIN` at `POST /api/mail/inbound` with JSON `{ from, to, subject, text }` and header `x-relay-secret`. This lets both sides reply to masked addresses straight from their inbox.
+- `SMTP_URL`, `TWILIO_*` and optionally `ANTHROPIC_API_KEY`.
+- `DATABASE_URL` (a libSQL/Turso URL, or a file on a persistent volume) and `STORAGE_DIR` on persistent storage.
+
+## Tech stack
+
+- **Next.js 16** (App Router, Server Components, Server Actions) + **React 19** + **TypeScript**
+- **Tailwind CSS 4**, light and dark themes
+- **Drizzle ORM** on **SQLite / libSQL** (`src/db/schema.ts`, migrations in `drizzle/`)
+- Cookie sessions with scrypt password hashing; role-based access for candidates, companies (4 workspace roles) and admins
+- `pdfkit` for resume PDFs, `nodemailer` / Twilio REST for notifications, `@anthropic-ai/sdk` for the optional AI assistant
+- Vitest and Playwright
+
+## Project structure
+
+```
+src/
+  app/
+    (public)/        landing, pricing, job discovery, job detail, company trust profile, login/register, invites
+    (account)/       notifications, settings (all roles)
+    candidate/       candidate CRM: profile, score, verification, assessments, resumes, matches,
+                     Find Jobs For Me, applications, saved jobs, interviews, messages, privacy
+    company/         onboarding + workspace: hiring CRM, jobs, pipeline, candidate search, interviews,
+                     messages, company verification, recruiter workspace, billing & placements
+    admin/           users, verification, jobs, assessments, recruitment, finance, communication, notification log
+    api/             protected files/photos, resume PDF, interview .ics, cron, inbound mail relay
+  actions/           server actions (auth, candidate, company, admin, account)
+  server/            services: auth, applications/pipeline, matching, messaging relay, placements, invoices,
+                     assessments, verification, notifications, scheduled jobs, resume PDF, access control
+  lib/               pure domain logic: matching, profile score, contact guard, pipeline rules, billing,
+                     assessment engine, interview summary, ICS, plans, permissions (unit-tested)
+  components/        UI kit, badges, shell, forms
+  db/                Drizzle schema and client
+scripts/             migrate, seed (demo data + question bank), reset, run-jobs
+tests/               unit tests; tests/e2e/smoke.mjs end-to-end journeys
+```
+
+## Feature map
+
+| Spec section | Where it lives |
+| --- | --- |
+| 1. Company registration & verification | `/company/onboarding`, `/company/profile` (all compliance fields, documents, checklist, submit); **UNVERIFIED COMPANY** / **VERIFIED COMPANY ✓** badges everywhere; admin review at `/admin/verification` |
+| Company dashboard | `/company` Hiring CRM plus the jobs, pipeline, search, interviews, messages and billing pages |
+| 2. Job posting | `/company/jobs/new`: every listed field, plus mandatory requirements (min experience, max notice, education, minimum CTC, Level 1/2, verified identity). Jobs from unverified companies wait for admin approval |
+| 3. Job seeker registration & verification | `/candidate/profile`, `/candidate/verification` (private documents, admin approval → badges); documents only visible to staff unless the candidate shares them |
+| 4. Candidate screening | `/candidate/assessments`: timed Level 1 aptitude and Level 2 IT/Finance/Sales/HR tests, server-scored, random draw across topics, retake cooldown |
+| 5. Candidate profile score | `/candidate/score`: completion %, verification, screening and professional checklists (no opaque AI score) |
+| 6. Privacy-protected communication | Masked `hr_#####@panel.com` / `candidate_#####@panel.com` addresses, in-app threads, email relay both ways (`/api/mail/inbound`), phone/email/WhatsApp detection with redaction, admin moderation and relay logs |
+| 7. Job discovery | `/jobs` filters for location, salary, experience, industry, job type, work mode, company, skills, education, verified companies and date posted. Flow: save → apply → track |
+| 8. Smart job matching | Explainable scoring in `src/lib/matching.ts`; "N jobs match your profile" (`/candidate/matches`) and "N candidates match your job" (`/company/jobs/[id]/matches`) with reasons |
+| 9. Find a Job for Me | `/candidate/find-jobs` preferences + consent (ask first or auto-apply); daily auto-matching; admin recruitment desk at `/admin/recruitment` |
+| 10. Interview management | Pipeline Applied → … → Joined, scheduling with video links, `.ics`/Google Calendar, reminders, rescheduling, notes, structured feedback, history |
+| 11. 60-day payment model | Placements track selected date, joining date, 60-day milestone, auto-invoice, payment status and replacement/refund eligibility (`/company/billing`, `/admin/finance`) |
+| 12. Company hiring CRM | `/company`: open jobs, applications, shortlisted, interviews, offers, joined, plus a funnel |
+| 13. Candidate CRM | `/candidate`: completion, application counts, recommended jobs, verification |
+| 14. Resume builder | `/candidate/resumes`: multiple versions, 4 templates, section ordering, job-specific suggestions, live preview, PDF export |
+| 15. Notifications | In-app + email + SMS + WhatsApp per user preference (`/settings`), all the example messages from the spec |
+| 16. Admin panel | `/admin/*`: users, verification, jobs, assessments (question bank, passing criteria, analytics), recruitment, finance, communication |
+| 17. Additional features | Verification levels (Basic → Fully Verified), company trust profile (`/companies/[id]`), availability, notice-period & CTC matching, Interview AI assistant, recruiter workspace with roles, candidate consent management (`/candidate/privacy`) |
+| 18. Revenue model | Success Fee / Subscription / Hybrid plans and the optional services catalogue (`/pricing`, `/company/billing`) |
+| 19. Overall platform flow | Covered end to end by `tests/e2e/smoke.mjs` |
+
+---
+
+# Product specification
+
 HR Recruitment & Talent Marketplace — Product Description
 
 A modern recruitment platform that connects verified companies with verified, pre-screened job seekers through a secure and privacy-focused hiring marketplace.
