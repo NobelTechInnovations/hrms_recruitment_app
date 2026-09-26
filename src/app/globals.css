@@ -1,0 +1,147 @@
+@import "tailwindcss";
+
+/* Design tokens. Chart roles (series, track, status) follow the validated
+   reference palette: one blue hue for magnitude, same-ramp meter tracks,
+   reserved status colors that always ship with an icon/label. */
+:root {
+  --canvas: #f6f6f4;
+  --surface: #ffffff;
+  --subtle: #f1f1ee;
+  --line: #e4e3de;
+  --line-strong: #cfcdc6;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #75746f;
+  --accent: #1c5cab;
+  --accent-hover: #184f95;
+  --accent-soft: #e8f1fd;
+  --accent-ink: #184f95;
+  --series-1: #2a78d6;
+  --track: #cde2fb;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --focus: #3987e5;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #121211;
+    --surface: #1a1a19;
+    --subtle: #232321;
+    --line: #33322f;
+    --line-strong: #4a4945;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #9a998f;
+    --accent: #3987e5;
+    --accent-hover: #5598e7;
+    --accent-soft: #16263b;
+    --accent-ink: #9ec5f4;
+    --series-1: #3987e5;
+    --track: #0d366b;
+    --focus: #6da7ec;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-series: var(--series-1);
+  --color-track: var(--track);
+  --color-good: var(--good);
+  --color-warning: var(--warning);
+  --color-serious: var(--serious);
+  --color-critical: var(--critical);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@layer components {
+/* Form controls */
+.input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.input::placeholder {
+  color: var(--ink-3);
+}
+.input:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+.input[aria-invalid="true"],
+[data-invalid="true"] .input {
+  border-color: var(--critical);
+}
+select.input {
+  padding-right: 2rem;
+}
+textarea.input {
+  min-height: 6rem;
+}
+
+/* Tooltip for chart marks (hover + keyboard focus) */
+.viz-tip {
+  position: relative;
+}
+.viz-tip > [role="tooltip"] {
+  pointer-events: none;
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  white-space: nowrap;
+  border-radius: 0.375rem;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.viz-tip:hover > [role="tooltip"],
+.viz-tip:focus-visible > [role="tooltip"] {
+  opacity: 1;
+}
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+}
