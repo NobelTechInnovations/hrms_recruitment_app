@@ -9,6 +9,17 @@ import { daysFromNow, isoDate } from "@/lib/time";
 
 type Action = (s: ActionState, fd: FormData) => Promise<ActionState>;
 
+/** A disclosure whose open state survives server re-renders (e.g. after an action revalidates). */
+export function Collapsible({ title, defaultOpen, className, summaryClassName = "text-ink", children }: { title: string; defaultOpen: boolean; className?: string; summaryClassName?: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <details className={className} open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+      <summary className={`cursor-pointer text-sm font-medium ${summaryClassName}`}>{title}</summary>
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
+
 export function StageForm({ action, options, defaultCtc }: { action: Action; options: { value: string; label: string }[]; defaultCtc?: string }) {
   const [to, setTo] = useState(options[0]?.value ?? "");
   if (!options.length) return <p className="text-sm text-ink-2">This application is closed — no further stage changes.</p>;

@@ -20,7 +20,7 @@ import { requireCompany } from "@/server/auth";
 import { companyMembersList } from "@/server/company-queries";
 import { highestEducation, loadCandidateBundle, scoreFor, toMatchCandidate } from "@/server/queries";
 
-import { FeedbackForm, RescheduleForm, ScheduleForm, StageForm } from "./controls";
+import { Collapsible, FeedbackForm, RescheduleForm, ScheduleForm, StageForm } from "./controls";
 
 export const metadata: Metadata = { title: "Application" };
 
@@ -185,15 +185,14 @@ export default async function CompanyApplicationPage({ params }: { params: Promi
                           </div>
                         ) : null}
                         {canFeedback && interview.status !== "cancelled" ? (
-                          <details className="mt-3 border-t border-line pt-3" open={!mine && interview.status === "completed"}>
-                            <summary className="cursor-pointer text-sm font-medium text-accent">{mine ? "Edit your feedback" : "Add structured feedback"}</summary>
-                            <div className="mt-3">
+                          <Collapsible title={mine ? "Edit your feedback" : "Add structured feedback"} defaultOpen={!mine && interview.status === "completed"} className="mt-3 border-t border-line pt-3" summaryClassName="text-accent">
+                            <div>
                               <FeedbackForm
                                 action={submitFeedbackAction.bind(null, interview.id)}
                                 d={mine ? { ...mine.fb, strengths: mine.fb.strengths ?? "", concerns: mine.fb.concerns ?? "", salaryNotes: mine.fb.salaryNotes ?? "", availabilityNotes: mine.fb.availabilityNotes ?? "" } : undefined}
                               />
                             </div>
-                          </details>
+                          </Collapsible>
                         ) : null}
                       </li>
                     );
@@ -203,17 +202,14 @@ export default async function CompanyApplicationPage({ params }: { params: Promi
                 <p className="text-sm text-ink-2">No interviews yet.</p>
               )}
               {schedule && !["rejected", "withdrawn", "joined"].includes(app.stage) ? (
-                <details className="rounded-lg border border-dashed border-line-strong p-4" open={!ivs.length}>
-                  <summary className="cursor-pointer text-sm font-medium text-ink">Schedule an interview</summary>
-                  <div className="mt-4">
-                    <ScheduleForm
+                <Collapsible title="Schedule an interview" defaultOpen={!ivs.length} className="rounded-lg border border-dashed border-line-strong p-4">
+                  <ScheduleForm
                       action={scheduleInterviewAction.bind(null, app.id)}
                       stages={INTERVIEW_STAGES.map((s) => ({ value: s, label: stageLabel(s) }))}
                       defaultStage={INTERVIEW_STAGES.find((s) => INTERVIEW_STAGES.indexOf(s) > INTERVIEW_STAGES.indexOf(app.stage as never)) ?? "interview_1"}
                       interviewers={members.map((m) => ({ value: m.user.id, label: `${m.user.name}${m.user.id === user.id ? " (you)" : ""}` }))}
                     />
-                  </div>
-                </details>
+                </Collapsible>
               ) : null}
             </CardBody>
           </Card>
